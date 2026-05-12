@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API = "http://172.28.135.37:8000";
+const API = "http://192.168.12.214:8000";
 
 // ─── Utils ────────────────────────────────────────────────
 function ts() {
