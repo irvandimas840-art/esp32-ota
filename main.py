@@ -21,6 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from routers import ota
+app.include_router(ota.router, prefix="/ota")
+
 # ── Konfigurasi ──
 FIRMWARE_DIR  = "firmware"
 FIRMWARE_FILE = os.path.join(FIRMWARE_DIR, "firmware.bin")
@@ -34,20 +37,6 @@ os.makedirs(FIRMWARE_DIR, exist_ok=True)
 
 # ── Serve file firmware via HTTP ──
 app.mount("/firmware/files", StaticFiles(directory=FIRMWARE_DIR), name="firmware_files")
-
-# ── In-memory device status (diupdate oleh ESP32) ──
-device_status_store = {}
-
-
-# ══════════════════════════════════════════════
-#  Models
-# ══════════════════════════════════════════════
-
-class DeviceStatus(BaseModel):
-    battery:     float
-    temperature: float
-    rssi:        int
-    save_to_ota: bool
 
 
 # ══════════════════════════════════════════════
@@ -113,33 +102,3 @@ def trigger_ota():
 
     return {"message": "OTA trigger dikirim", "topic": MQTT_TOPIC, "payload": payload}
 
-
-# ── ESP32 POST telemetry setelah OTA ──
-@app.post("/device/status")
-def post_device_status(status: DeviceStatus):
-    """
-    Dipanggil oleh ESP32 setelah OTA selesai.
-    Contoh payload dari ESP32:
-    {
-      "battery": 3.82,
-      "temperature": 43.5,
-      "rssi": -62,
-      "save_to_ota": true
-    }
-    """
-    device_status_store.update({
-        "battery":     status.battery,
-        "temperature": status.temperature,
-        "rssi":        status.rssi,
-        "save_to_ota": status.save_to_ota,
-        "received_at": datetime.utcnow().isoformat(),
-    })
-    return {"message": "Status diterima"}
-
-
-# ── Dashboard GET telemetry ──
-@app.get("/device/status")
-def get_device_status():
-    if not device_status_store:
-        raise HTTPException(status_code=404, detail="Belum ada data dari device")
-    return device_status_store
